@@ -52,7 +52,7 @@ export const Actions = ({ children, id, side, sideOffset }: ActionsProps) => {
         className="w-60"
       >
         <DropdownMenuItem
-          onClick={() => onOpen(id, title)}
+          onClick={onCopyLink}
           className="p-3 cursor-pointer"
         >
           <Link2 className="w-4 h-4 mr-2" />
