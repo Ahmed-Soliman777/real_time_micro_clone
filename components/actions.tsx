@@ -8,12 +8,14 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
-import { Link2, Trash2 } from "lucide-react";
+import { Link2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { api } from "@/convex/_generated/api";
 import { ConfirmModal } from "./confirm-modal";
 import { Button } from "./ui/button";
+import { useRenameModal } from "@/store/use-rename-modal";
+import { title } from "process";
 
 interface ActionsProps {
   children: React.ReactNode;
@@ -25,6 +27,7 @@ interface ActionsProps {
 
 export const Actions = ({ children, id, side, sideOffset }: ActionsProps) => {
   const { mutate, pending } = useApiMutation(api.board.remove);
+  const { onOpen } = useRenameModal();
 
   const onCopyLink = () => {
     navigator.clipboard
@@ -48,9 +51,19 @@ export const Actions = ({ children, id, side, sideOffset }: ActionsProps) => {
         sideOffset={sideOffset}
         className="w-60"
       >
-        <DropdownMenuItem className="p-3 cursor-pointer" onClick={onCopyLink}>
+        <DropdownMenuItem
+          onClick={() => onOpen(id, title)}
+          className="p-3 cursor-pointer"
+        >
           <Link2 className="w-4 h-4 mr-2" />
           Copy board link
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="p-3 cursor-pointer"
+          onClick={() => onOpen(id, title)}
+        >
+          <Pencil className="w-4 h-4 mr-2" />
+          Rename
         </DropdownMenuItem>
         <ConfirmModal
           header="Delete board?"
