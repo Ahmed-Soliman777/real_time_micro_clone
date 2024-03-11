@@ -80,37 +80,72 @@ export const update = mutation({
   },
 });
 
+// export const favorite = mutation({
+//   args: { id: v.id("boards"), orgId: v.string() },
+//   handler: async (ctx, args) => {
+//     const indentity = await ctx.auth.getUserIdentity();
+//     if (!indentity) {
+//       throw new Error("Unathorized");
+//     }
+
+//     const board = await ctx.db.get(args.id);
+//     if (!board) {
+//       throw new Error("Board not found!");
+//     }
+
+//     const userId = indentity.subject;
+//     const existingFavorite = await ctx.db
+//       .query("userFavorites")
+//       .withIndex("by_user_board", (q) =>
+//         q.eq("userId", userId).eq("boardId", board._id)
+//       )
+//       .unique();
+
+//     if (existingFavorite) {
+//       throw new Error("Board already favorited");
+//     }
+
+//     await ctx.db.insert("userFavorites", {
+//       userId,
+//       boardId: board._id,
+//       orgId: args.id,
+//     });
+
+//     return board;
+//   },
+// });
+
 export const favorite = mutation({
   args: { id: v.id("boards"), orgId: v.string() },
   handler: async (ctx, args) => {
-    const indentity = await ctx.auth.getUserIdentity();
-    if (!indentity) {
-      throw new Error("Unathorized");
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthorized");
     }
-
     const board = await ctx.db.get(args.id);
+
     if (!board) {
-      throw new Error("Board not found!");
+      throw new Error("Board not found");
     }
 
-    const userId = indentity.subject;
+    const userId = identity.subject;
+
     const existingFavorite = await ctx.db
       .query("userFavorites")
-      .withIndex("by_user_board", (q) =>
-        q.eq("userId", userId).eq("boardId", board._id)
+      .withIndex("by_user_board_org", (q) =>
+        q.eq("userId", userId).eq("boardId", board._id).eq("orgId", args.orgId)
       )
       .unique();
 
     if (existingFavorite) {
-      throw new Error("Board already favorited");
+      throw new Error("Favorite already exists");
     }
 
     await ctx.db.insert("userFavorites", {
       userId,
       boardId: board._id,
-      orgId: args.id,
+      orgId: args.orgId,
     });
-
     return board;
   },
 });
