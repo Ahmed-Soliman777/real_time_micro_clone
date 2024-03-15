@@ -21,12 +21,12 @@ export const LayerPreview = memo(
 
     switch (layer.type) {
       case LayerType.Rectangle:
-        return <Rectangle 
+        return (<Rectangle 
             id={id}
             layer={layer}
             onPointerDown={onLayerPointerDown}
             selectionColor={selectionColor}
-        />;
+        />);
       default:
         console.warn("Unknown layer");
         return null;
