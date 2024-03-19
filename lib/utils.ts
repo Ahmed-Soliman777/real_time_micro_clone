@@ -153,3 +153,38 @@ export function penPointsToPathLayer(
     points: points.map(([x, y, pressure]) => [x - left, y - top, pressure]),
   };
 }
+
+export function getSvgPathFromStroke(stroke: number[][]) {
+  if (!stroke.length) return "";
+
+  const d = stroke.reduce(
+    (acc, [x0, y0], i, arr) => {
+      const [x1, y1] = arr[(i + 1) % arr.length];
+      acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+      return acc;
+    },
+    ["M", ...stroke[0], "Q"]
+  );
+
+  d.push("Z");
+  return d.join(" ");
+}
+
+// Here's a breakdown of what the code does:
+
+
+// The function first checks if the stroke array is empty. If it is, the function immediately returns an empty string.
+
+// The stroke array is reduced to a single array d using the reduce method. At each step of the reduction, the callback function is called with the accumulator array acc and the current element [x0, y0] from the stroke array.
+
+// The callback function calculates the coordinates of the next point [x1, y1] in the stroke array using the modulo operator % to handle the case where the current index i is equal to the length of the stroke array minus one.
+
+// The callback function then adds four values to the accumulator array: x0, y0, the average of x0 and x1, and the average of y0 and y1. These values represent a quadratic Bezier curve from (x0, y0) to (x1, y1) with a control point at the average of the two endpoints.
+
+// The initial value passed to reduce is an array containing the string "M" (which stands for "moveto" in SVG path syntax) followed by the first point in the stroke array.
+
+// After the reduction is complete, the accumulator array d has one more element added to it: the string "Z" (which stands for "closepath" in SVG path syntax).
+
+// Finally, the function returns the accumulator array d joined into a single string with spaces between each element.
+
+// In summary, this function takes in an array of points and returns an SVG path string that represents a series of quadratic Bezier curves connecting those points.
