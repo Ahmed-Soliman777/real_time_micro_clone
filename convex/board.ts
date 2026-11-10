@@ -8,58 +8,76 @@ export const create = mutation({
     orgId: v.string(),
     title: v.string(),
   },
-  handler: async (ctx, args) => {
-    const indentity = await ctx.auth.getUserIdentity();
 
-    if (!indentity) {
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
       throw new Error("Unauthorized");
     }
 
-    const randomImage = images[Math.floor(Math.random() * images.length)];
-    console.log(randomImage, "TEST");
+    const authorName = identity.name ?? identity.nickname ?? "Anonymous";
 
-    const board = await ctx.db.insert("boards", {
+    const randomImage = images[Math.floor(Math.random() * images.length)];
+
+    const boardId = await ctx.db.insert("boards", {
       title: args.title,
       orgId: args.orgId,
-      authorId: indentity.subject,
-      authorName: indentity.name!,
+      authorId: identity.subject,
+      authorName: authorName,
       imageUrl: randomImage,
     });
-    return board;
+
+    return boardId;
   },
 });
 
 export const remove = mutation({
-  args: { id: v.id("boards") },
-  handler: async (ctx, args) => {
-    const indentity = await ctx.auth.getUserIdentity();
+  args: {
+    id: v.id("boards"),
+  },
 
-    if (!indentity) {
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
       throw new Error("Unauthorized");
     }
 
-    const userId = indentity.subject;
-    const existingFavorite = await ctx.db
+    const board = await ctx.db.get(args.id);
+
+    if (!board) {
+      throw new Error("Board not found");
+    }
+
+    // Delete all favorites associated with this board
+    const favorites = await ctx.db
       .query("userFavorites")
       .withIndex("by_user_board", (q) =>
-        q.eq("userId", userId).eq("boardId", args.id)
+        q.eq("userId", identity.subject).eq("boardId", args.id),
       )
-      .unique();
+      .collect();
 
-    if (existingFavorite) {
-      await ctx.db.delete(existingFavorite._id);
+    for (const favorite of favorites) {
+      await ctx.db.delete(favorite._id);
     }
 
     await ctx.db.delete(args.id);
+
+    return { success: true };
   },
 });
 
 export const update = mutation({
-  args: { id: v.id("boards"), title: v.string() },
-  handler: async (ctx, args) => {
-    const indentity = await ctx.auth.getUserIdentity();
+  args: {
+    id: v.id("boards"),
+    title: v.string(),
+  },
 
-    if (!indentity) {
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
       throw new Error("Unauthorized");
     }
 
@@ -70,58 +88,39 @@ export const update = mutation({
     }
 
     if (title.length > 60) {
-      throw new Error("Title can not exceed 60 characters");
+      throw new Error("Title cannot exceed 60 characters");
     }
-    const board = await ctx.db.patch(args.id, {
-      title: args.title,
+
+    const board = await ctx.db.get(args.id);
+
+    if (!board) {
+      throw new Error("Board not found");
+    }
+
+    await ctx.db.patch(args.id, {
+      title,
     });
 
-    return board;
+    return {
+      ...board,
+      title,
+    };
   },
 });
 
-// export const favorite = mutation({
-//   args: { id: v.id("boards"), orgId: v.string() },
-//   handler: async (ctx, args) => {
-//     const indentity = await ctx.auth.getUserIdentity();
-//     if (!indentity) {
-//       throw new Error("Unathorized");
-//     }
-
-//     const board = await ctx.db.get(args.id);
-//     if (!board) {
-//       throw new Error("Board not found!");
-//     }
-
-//     const userId = indentity.subject;
-//     const existingFavorite = await ctx.db
-//       .query("userFavorites")
-//       .withIndex("by_user_board", (q) =>
-//         q.eq("userId", userId).eq("boardId", board._id)
-//       )
-//       .unique();
-
-//     if (existingFavorite) {
-//       throw new Error("Board already favorited");
-//     }
-
-//     await ctx.db.insert("userFavorites", {
-//       userId,
-//       boardId: board._id,
-//       orgId: args.id,
-//     });
-
-//     return board;
-//   },
-// });
-
 export const favorite = mutation({
-  args: { id: v.id("boards"), orgId: v.string() },
+  args: {
+    id: v.id("boards"),
+    orgId: v.string(),
+  },
+
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
+
     if (!identity) {
       throw new Error("Unauthorized");
     }
+
     const board = await ctx.db.get(args.id);
 
     if (!board) {
@@ -133,7 +132,7 @@ export const favorite = mutation({
     const existingFavorite = await ctx.db
       .query("userFavorites")
       .withIndex("by_user_board_org", (q) =>
-        q.eq("userId", userId).eq("boardId", board._id).eq("orgId", args.orgId)
+        q.eq("userId", userId).eq("boardId", board._id).eq("orgId", args.orgId),
       )
       .unique();
 
@@ -146,33 +145,38 @@ export const favorite = mutation({
       boardId: board._id,
       orgId: args.orgId,
     });
+
     return board;
   },
 });
 
 export const unfavorite = mutation({
-  args: { id: v.id("boards") },
+  args: {
+    id: v.id("boards"),
+  },
+
   handler: async (ctx, args) => {
-    const indentity = await ctx.auth.getUserIdentity();
-    if (!indentity) {
-      throw new Error("Unathorized");
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Unauthorized");
     }
 
     const board = await ctx.db.get(args.id);
+
     if (!board) {
-      throw new Error("Board not found!");
+      throw new Error("Board not found");
     }
 
-    const userId = indentity.subject;
     const existingFavorite = await ctx.db
       .query("userFavorites")
       .withIndex("by_user_board", (q) =>
-        q.eq("userId", userId).eq("boardId", board._id)
+        q.eq("userId", identity.subject).eq("boardId", board._id),
       )
       .unique();
 
     if (!existingFavorite) {
-      throw new Error("Favorited board not found!");
+      throw new Error("Favorited board not found");
     }
 
     await ctx.db.delete(existingFavorite._id);
@@ -182,9 +186,13 @@ export const unfavorite = mutation({
 });
 
 export const get = query({
-  args: { id: v.id("boards") },
+  args: {
+    id: v.id("boards"),
+  },
+
   handler: async (ctx, args) => {
-    const board = ctx.db.get(args.id);
+    const board = await ctx.db.get(args.id);
+
     return board;
   },
 });

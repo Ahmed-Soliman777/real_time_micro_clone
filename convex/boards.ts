@@ -34,7 +34,7 @@ export const get = query({
       }));
     }
 
-    const title = args.search as string;
+    const title = args.search ?? "";
     let boards = [];
 
     if (title) {
